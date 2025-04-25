@@ -5,48 +5,63 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Tower of Hanoi</title>
   <style>
+    /* Basic page styling */
     body {
-      font-family: Arial, sans-serif;
-      text-align: center;
+      font-family: Arial, sans-serif;       /* Use a clean, sans-serif font */
+      text-align: center;                  /* Center-align all text */
       margin: 0;
       padding: 20px;
-      background-color: #f5f5f5;
+      background-color: #f5f5f5;           /* Light grey background */
     }
+
+    /* Heading spacing */
     h1 {
       margin-bottom: 10px;
     }
+
+    /* Controls section spacing */
     #controls {
       margin-bottom: 20px;
     }
+
+    /* Game container: three pegs side by side */
     #game {
       display: flex;
-      justify-content: space-around;
-      align-items: flex-end;
-      height: 300px;
+      justify-content: space-around;       /* Even space around each peg */
+      align-items: flex-end;               /* Align pegs to bottom */
+      height: 300px;                       /* Fixed height for tower area */
     }
+
+    /* Individual peg styling */
     .peg {
-      flex: 1;
-      max-width: 150px;
-      border-top: 10px solid #555;
-      position: relative;
-      cursor: pointer;
+      flex: 1;                             /* Pegs share available width equally */
+      max-width: 150px;                    /* Prevent pegs from getting too wide */
+      border-top: 10px solid #555;         /* Visual representation of the peg top */
+      position: relative;                  /* For absolute-positioned disks inside */
+      cursor: pointer;                     /* Indicate clickable area */
       background-color: #e0e0e0;
       margin: 0 10px;
     }
+
+    /* Highlight selected peg */
     .peg.selected {
       background-color: #d1ecf1;
     }
+
+    /* Disk styling: colored rectangles with rounded corners */
     .disk {
-      position: absolute;
+      position: absolute;                  /* Stack on bottom of pegs */
       height: 20px;
       border-radius: 4px;
       background-color: #3498db;
       border: 2px solid #2980b9;
       box-sizing: border-box;
-      left: 50%;
+      left: 50%;                           /* Center horizontally */
       transform: translateX(-50%);
       cursor: pointer;
     }
+
+    /* Move counter spacing */
     #moves {
       margin-top: 20px;
     }
@@ -54,6 +69,8 @@
 </head>
 <body>
   <h1>Tower of Hanoi</h1>
+
+  <!-- Control panel: select number of disks and reset button -->
   <div id="controls">
     <label for="numDisks">Number of Disks:</label>
     <select id="numDisks">
@@ -64,81 +81,123 @@
     </select>
     <button id="reset">Reset</button>
   </div>
+
+  <!-- Game area: three pegs for disks -->
   <div id="game">
     <div class="peg" data-peg="0"></div>
     <div class="peg" data-peg="1"></div>
     <div class="peg" data-peg="2"></div>
   </div>
-  <div id="moves">Moves: <span id="moveCount">0</span></div>
-  <script>
-    const pegs = [[], [], []];
-    let selectedPeg = null;
-    let moveCount = 0;
 
-    const gameEl = document.getElementById('game');
+  <!-- Display move count -->
+  <div id="moves">Moves: <span id="moveCount">0</span></div>
+
+  <script>
+    // Array of three pegs, each peg holds an array of disk sizes
+    const pegs = [[], [], []];
+    let selectedPeg = null;    // Index of peg selected to move a disk from
+    let moveCount = 0;         // Tracks number of valid moves made
+    let totalDisks = 0;        // Total number of disks in current game
+
+    // Cache DOM elements for performance
     const moveCountEl = document.getElementById('moveCount');
     const numDisksEl = document.getElementById('numDisks');
     const resetBtn = document.getElementById('reset');
 
+    /**
+     * Initialize or reset the game state
+     */
     function init() {
-      const n = parseInt(numDisksEl.value);
+      const n = parseInt(numDisksEl.value, 10);  // Number of disks chosen
+      totalDisks = n;                             // Store total for consistent sizing
+
+      // Fill first peg with disks of sizes n down to 1
       pegs[0] = Array.from({ length: n }, (_, i) => n - i);
       pegs[1] = [];
       pegs[2] = [];
+
       moveCount = 0;
       moveCountEl.textContent = moveCount;
       selectedPeg = null;
-      render();
+
+      render();  // Draw initial state
     }
 
+    /**
+     * Render disks on each peg based on the pegs[] data
+     */
     function render() {
+      // Iterate over each peg element in the DOM
       document.querySelectorAll('.peg').forEach(pegEl => {
-        const idx = +pegEl.dataset.peg;
-        pegEl.innerHTML = '';
+        const idx = +pegEl.dataset.peg;  // Convert data-peg to number
+        pegEl.innerHTML = '';            // Clear existing disks
+
+        // Place each disk in the peg, bottom-up
         pegs[idx].forEach((size, i) => {
           const disk = document.createElement('div');
           disk.className = 'disk';
-          const maxWidth = 120; // px
-          const minWidth = 30; // smallest disk width
-          const width = minWidth + (size - 1) * ((maxWidth - minWidth) / (pegs[0].length - 1));
+
+          // Calculate disk width proportionally:
+          // smallest disk = 30px, largest = 120px
+          const maxWidth = 120;
+          const minWidth = 30;
+          // Use totalDisks to scale sizes consistently, not pegs[0].length
+          const width = minWidth + (size - 1) * ((maxWidth - minWidth) / (totalDisks - 1));
+
           disk.style.width = width + 'px';
-          disk.style.bottom = (i * 22) + 'px';
+          disk.style.bottom = (i * 22) + 'px';  // Stack disks 22px apart
+
           pegEl.appendChild(disk);
         });
+
+        // Visually mark selected peg
         pegEl.classList.toggle('selected', selectedPeg === idx);
       });
     }
 
+    /**
+     * Handle clicks on a peg: select or move a disk
+     */
     function handlePegClick(e) {
       const pegIdx = +e.currentTarget.dataset.peg;
+
       if (selectedPeg === null) {
+        // First click: pick up top disk if peg is not empty
         if (pegs[pegIdx].length === 0) return;
         selectedPeg = pegIdx;
       } else {
+        // Second click: attempt to move disk to new peg
         if (selectedPeg !== pegIdx) {
           const from = selectedPeg;
           const to = pegIdx;
-          const disk = pegs[from].slice(-1)[0];
-          const targetTop = pegs[to].slice(-1)[0] || Infinity;
+          const disk = pegs[from].slice(-1)[0];         // Size of disk being moved
+          const targetTop = pegs[to].slice(-1)[0] || Infinity;  // Top disk size or infinity if empty
+
+          // Enforce rule: larger disks cannot go on smaller disks
           if (disk < targetTop) {
-            pegs[to].push(pegs[from].pop());
+            pegs[to].push(pegs[from].pop());  // Move disk
             moveCount++;
             moveCountEl.textContent = moveCount;
           }
         }
-        selectedPeg = null;
+        selectedPeg = null;  // Reset selection
       }
-      render();
-      checkWin();
+
+      render();     // Update visual state after move attempt
+      checkWin();   // Check if puzzle is solved
     }
 
+    /**
+     * Check for win condition: all disks moved to last peg
+     */
     function checkWin() {
-      const n = parseInt(numDisksEl.value);
-      if (pegs[2].length === n) {
+      if (pegs[2].length === totalDisks) {
+        // Small timeout to ensure render completes before alert
         setTimeout(() => alert(`Congratulations! You solved it in ${moveCount} moves.`), 10);
       }
     }
 
+    // Attach event listeners to pegs and controls
     document.querySelectorAll('.peg').forEach(pegEl => {
       pegEl.addEventListener('click', handlePegClick);
     });
@@ -146,7 +205,7 @@
     resetBtn.addEventListener('click', init);
     numDisksEl.addEventListener('change', init);
 
-    // Initialize the game on load
+    // Start the game when the page loads
     init();
   </script>
 </body>
