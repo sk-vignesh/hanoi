@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Tower of Hanoi</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      text-align: center;
+      margin: 0;
+      padding: 20px;
+      background-color: #f5f5f5;
+    }
+    h1 {
+      margin-bottom: 10px;
+    }
+    #controls {
+      margin-bottom: 20px;
+    }
+    #game {
+      display: flex;
+      justify-content: space-around;
+      align-items: flex-end;
+      height: 300px;
+    }
+    .peg {
+      flex: 1;
+      max-width: 150px;
+      border-top: 10px solid #555;
+      position: relative;
+      cursor: pointer;
+      background-color: #e0e0e0;
+      margin: 0 10px;
+    }
+    .peg.selected {
+      background-color: #d1ecf1;
+    }
+    .disk {
+      position: absolute;
+      height: 20px;
+      border-radius: 4px;
+      background-color: #3498db;
+      border: 2px solid #2980b9;
+      box-sizing: border-box;
+      left: 50%;
+      transform: translateX(-50%);
+      cursor: pointer;
+    }
+    #moves {
+      margin-top: 20px;
+    }
+  </style>
+</head>
+<body>
+  <h1>Tower of Hanoi</h1>
+  <div id="controls">
+    <label for="numDisks">Number of Disks:</label>
+    <select id="numDisks">
+      <option>3</option>
+      <option>4</option>
+      <option>5</option>
+      <option>6</option>
+    </select>
+    <button id="reset">Reset</button>
+  </div>
+  <div id="game">
+    <div class="peg" data-peg="0"></div>
+    <div class="peg" data-peg="1"></div>
+    <div class="peg" data-peg="2"></div>
+  </div>
+  <div id="moves">Moves: <span id="moveCount">0</span></div>
+  <script>
+    const pegs = [[], [], []];
+    let selectedPeg = null;
+    let moveCount = 0;
+
+    const gameEl = document.getElementById('game');
+    const moveCountEl = document.getElementById('moveCount');
+    const numDisksEl = document.getElementById('numDisks');
+    const resetBtn = document.getElementById('reset');
+
+    function init() {
+      const n = parseInt(numDisksEl.value);
+      pegs[0] = Array.from({ length: n }, (_, i) => n - i);
+      pegs[1] = [];
+      pegs[2] = [];
+      moveCount = 0;
+      moveCountEl.textContent = moveCount;
+      selectedPeg = null;
+      render();
+    }
+
+    function render() {
+      document.querySelectorAll('.peg').forEach(pegEl => {
+        const idx = +pegEl.dataset.peg;
+        pegEl.innerHTML = '';
+        pegs[idx].forEach((size, i) => {
+          const disk = document.createElement('div');
+          disk.className = 'disk';
+          const maxWidth = 120; // px
+          const minWidth = 30; // smallest disk width
+          const width = minWidth + (size - 1) * ((maxWidth - minWidth) / (pegs[0].length - 1));
+          disk.style.width = width + 'px';
+          disk.style.bottom = (i * 22) + 'px';
+          pegEl.appendChild(disk);
+        });
+        pegEl.classList.toggle('selected', selectedPeg === idx);
+      });
+    }
+
+    function handlePegClick(e) {
+      const pegIdx = +e.currentTarget.dataset.peg;
+      if (selectedPeg === null) {
+        if (pegs[pegIdx].length === 0) return;
+        selectedPeg = pegIdx;
+      } else {
+        if (selectedPeg !== pegIdx) {
+          const from = selectedPeg;
+          const to = pegIdx;
+          const disk = pegs[from].slice(-1)[0];
+          const targetTop = pegs[to].slice(-1)[0] || Infinity;
+          if (disk < targetTop) {
+            pegs[to].push(pegs[from].pop());
+            moveCount++;
+            moveCountEl.textContent = moveCount;
+          }
+        }
+        selectedPeg = null;
+      }
+      render();
+      checkWin();
+    }
+
+    function checkWin() {
+      const n = parseInt(numDisksEl.value);
+      if (pegs[2].length === n) {
+        setTimeout(() => alert(`Congratulations! You solved it in ${moveCount} moves.`), 10);
+      }
+    }
+
+    document.querySelectorAll('.peg').forEach(pegEl => {
+      pegEl.addEventListener('click', handlePegClick);
+    });
+
+    resetBtn.addEventListener('click', init);
+    numDisksEl.addEventListener('change', init);
+
+    // Initialize the game on load
+    init();
+  </script>
+</body>
+</html>
