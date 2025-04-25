@@ -93,11 +93,16 @@
   <div id="moves">Moves: <span id="moveCount">0</span></div>
 
   <script>
-    // Array of three pegs, each peg holds an array of disk sizes
+    // Constants for disk sizing
+    const MIN_WIDTH = 30;    // px for smallest disk
+    const MAX_WIDTH = 120;   // px for largest disk
+
+    // Game state variables
     const pegs = [[], [], []];
     let selectedPeg = null;    // Index of peg selected to move a disk from
     let moveCount = 0;         // Tracks number of valid moves made
     let totalDisks = 0;        // Total number of disks in current game
+    let diskWidths = [];       // Precomputed widths for disk sizes
 
     // Cache DOM elements for performance
     const moveCountEl = document.getElementById('moveCount');
@@ -108,8 +113,16 @@
      * Initialize or reset the game state
      */
     function init() {
-      const n = parseInt(numDisksEl.value, 10);  // Number of disks chosen
-      totalDisks = n;                             // Store total for consistent sizing
+      const n = parseInt(numDisksEl.value, 10);
+      totalDisks = n;
+
+      // Precompute widths so they never change mid-game
+      diskWidths = new Array(n + 1);
+      for (let size = 1; size <= n; size++) {
+        diskWidths[size] =
+          MIN_WIDTH +
+          (size - 1) * ((MAX_WIDTH - MIN_WIDTH) / (n - 1));
+      }
 
       // Fill first peg with disks of sizes n down to 1
       pegs[0] = Array.from({ length: n }, (_, i) => n - i);
@@ -120,37 +133,28 @@
       moveCountEl.textContent = moveCount;
       selectedPeg = null;
 
-      render();  // Draw initial state
+      render();
     }
 
     /**
      * Render disks on each peg based on the pegs[] data
      */
     function render() {
-      // Iterate over each peg element in the DOM
       document.querySelectorAll('.peg').forEach(pegEl => {
-        const idx = +pegEl.dataset.peg;  // Convert data-peg to number
-        pegEl.innerHTML = '';            // Clear existing disks
+        const idx = +pegEl.dataset.peg;
+        pegEl.innerHTML = '';
 
-        // Place each disk in the peg, bottom-up
         pegs[idx].forEach((size, i) => {
           const disk = document.createElement('div');
           disk.className = 'disk';
 
-          // Calculate disk width proportionally:
-          // smallest disk = 30px, largest = 120px
-          const maxWidth = 120;
-          const minWidth = 30;
-          // Use totalDisks to scale sizes consistently, not pegs[0].length
-          const width = minWidth + (size - 1) * ((maxWidth - minWidth) / (totalDisks - 1));
-
-          disk.style.width = width + 'px';
-          disk.style.bottom = (i * 22) + 'px';  // Stack disks 22px apart
+          // Lookup precomputed width
+          disk.style.width = diskWidths[size] + 'px';
+          disk.style.bottom = i * 22 + 'px';
 
           pegEl.appendChild(disk);
         });
 
-        // Visually mark selected peg
         pegEl.classList.toggle('selected', selectedPeg === idx);
       });
     }
@@ -162,29 +166,28 @@
       const pegIdx = +e.currentTarget.dataset.peg;
 
       if (selectedPeg === null) {
-        // First click: pick up top disk if peg is not empty
+        // Pick up top disk
         if (pegs[pegIdx].length === 0) return;
         selectedPeg = pegIdx;
       } else {
-        // Second click: attempt to move disk to new peg
+        // Attempt to place disk
         if (selectedPeg !== pegIdx) {
           const from = selectedPeg;
           const to = pegIdx;
-          const disk = pegs[from].slice(-1)[0];         // Size of disk being moved
-          const targetTop = pegs[to].slice(-1)[0] || Infinity;  // Top disk size or infinity if empty
+          const disk = pegs[from].slice(-1)[0];
+          const targetTop = pegs[to].slice(-1)[0] || Infinity;
 
-          // Enforce rule: larger disks cannot go on smaller disks
           if (disk < targetTop) {
-            pegs[to].push(pegs[from].pop());  // Move disk
+            pegs[to].push(pegs[from].pop());
             moveCount++;
             moveCountEl.textContent = moveCount;
           }
         }
-        selectedPeg = null;  // Reset selection
+        selectedPeg = null;
       }
 
-      render();     // Update visual state after move attempt
-      checkWin();   // Check if puzzle is solved
+      render();
+      checkWin();
     }
 
     /**
@@ -192,12 +195,11 @@
      */
     function checkWin() {
       if (pegs[2].length === totalDisks) {
-        // Small timeout to ensure render completes before alert
         setTimeout(() => alert(`Congratulations! You solved it in ${moveCount} moves.`), 10);
       }
     }
 
-    // Attach event listeners to pegs and controls
+    // Attach event listeners
     document.querySelectorAll('.peg').forEach(pegEl => {
       pegEl.addEventListener('click', handlePegClick);
     });
@@ -205,7 +207,7 @@
     resetBtn.addEventListener('click', init);
     numDisksEl.addEventListener('change', init);
 
-    // Start the game when the page loads
+    // Start the game
     init();
   </script>
 </body>
