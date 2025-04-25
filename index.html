@@ -7,207 +7,154 @@
   <style>
     /* Basic page styling */
     body {
-      font-family: Arial, sans-serif;       /* Use a clean, sans-serif font */
-      text-align: center;                  /* Center-align all text */
+      font-family: Arial, sans-serif;
+      text-align: center;
       margin: 0;
       padding: 20px;
-      background-color: #f5f5f5;           /* Light grey background */
+      background-color: #f5f5f5;
     }
+    h1 { margin-bottom: 10px; }
+    #controls { margin-bottom: 20px; }
 
-    /* Heading spacing */
-    h1 {
-      margin-bottom: 10px;
-    }
-
-    /* Controls section spacing */
-    #controls {
-      margin-bottom: 20px;
-    }
-
-    /* Game container: three pegs side by side */
+    /* Game container: three pegs as vertical rods */
     #game {
       display: flex;
-      justify-content: space-around;       /* Even space around each peg */
-      align-items: flex-end;               /* Align pegs to bottom */
-      height: 300px;                       /* Fixed height for tower area */
+      justify-content: space-around;
+      align-items: flex-end;
+      height: 300px;
     }
-
-    /* Individual peg styling */
     .peg {
-      flex: 1;                             /* Pegs share available width equally */
-      max-width: 150px;                    /* Prevent pegs from getting too wide */
-      border-top: 10px solid #555;         /* Visual representation of the peg top */
-      position: relative;                  /* For absolute-positioned disks inside */
-      cursor: pointer;                     /* Indicate clickable area */
+      flex: 1;
+      max-width: 150px;
+      position: relative;
       background-color: #e0e0e0;
       margin: 0 10px;
+      /* Draw a rod using a pseudo-element */
+    }
+    .peg::before {
+      content: '';
+      position: absolute;
+      bottom: 0;
+      left: 50%;
+      width: 10px;
+      height: 100%;
+      background-color: #555;
+      transform: translateX(-50%);
     }
 
-    /* Highlight selected peg */
-    .peg.selected {
-      background-color: #d1ecf1;
-    }
-
-    /* Disk styling: colored rectangles with rounded corners */
     .disk {
-      position: absolute;                  /* Stack on bottom of pegs */
+      position: absolute;
       height: 20px;
       border-radius: 4px;
       background-color: #3498db;
       border: 2px solid #2980b9;
       box-sizing: border-box;
-      left: 50%;                           /* Center horizontally */
+      left: 50%;
       transform: translateX(-50%);
-      cursor: pointer;
+      cursor: grab;
     }
+    .disk:active { cursor: grabbing; }
 
-    /* Move counter spacing */
-    #moves {
-      margin-top: 20px;
-    }
+    #moves, #optimal { margin-top: 10px; }
   </style>
 </head>
 <body>
   <h1>Tower of Hanoi</h1>
-
-  <!-- Control panel: select number of disks and reset button -->
   <div id="controls">
     <label for="numDisks">Number of Disks:</label>
     <select id="numDisks">
-      <option>3</option>
-      <option>4</option>
-      <option>5</option>
-      <option>6</option>
+      <option>3</option><option>4</option><option>5</option><option>6</option>
     </select>
     <button id="reset">Reset</button>
   </div>
-
-  <!-- Game area: three pegs for disks -->
   <div id="game">
     <div class="peg" data-peg="0"></div>
     <div class="peg" data-peg="1"></div>
     <div class="peg" data-peg="2"></div>
   </div>
-
-  <!-- Display move count -->
   <div id="moves">Moves: <span id="moveCount">0</span></div>
+  <div id="optimal">Optimal moves: <span id="optCount">0</span></div>
 
   <script>
-    // Constants for disk sizing
-    const MIN_WIDTH = 30;    // px for smallest disk
-    const MAX_WIDTH = 120;   // px for largest disk
+    const MIN_WIDTH = 30, MAX_WIDTH = 120;
+    let pegs = [[], [], []], totalDisks = 0, moveCount = 0;
+    let diskWidths = [];
 
-    // Game state variables
-    const pegs = [[], [], []];
-    let selectedPeg = null;    // Index of peg selected to move a disk from
-    let moveCount = 0;         // Tracks number of valid moves made
-    let totalDisks = 0;        // Total number of disks in current game
-    let diskWidths = [];       // Precomputed widths for disk sizes
-
-    // Cache DOM elements for performance
     const moveCountEl = document.getElementById('moveCount');
+    const optCountEl = document.getElementById('optCount');
     const numDisksEl = document.getElementById('numDisks');
     const resetBtn = document.getElementById('reset');
 
-    /**
-     * Initialize or reset the game state
-     */
     function init() {
       const n = parseInt(numDisksEl.value, 10);
       totalDisks = n;
-
-      // Precompute widths so they never change mid-game
-      diskWidths = new Array(n + 1);
-      for (let size = 1; size <= n; size++) {
-        diskWidths[size] =
-          MIN_WIDTH +
-          (size - 1) * ((MAX_WIDTH - MIN_WIDTH) / (n - 1));
-      }
-
-      // Fill first peg with disks of sizes n down to 1
-      pegs[0] = Array.from({ length: n }, (_, i) => n - i);
-      pegs[1] = [];
-      pegs[2] = [];
-
+      // Precompute disk widths
+      diskWidths = Array.from({ length: n+1 }, (_, size) =>
+        size === 0 ? 0 : MIN_WIDTH + (size-1)*((MAX_WIDTH-MIN_WIDTH)/(n-1))
+      );
+      // Initialize pegs
+      pegs = [Array.from({ length: n }, (_, i) => n-i), [], []];
       moveCount = 0;
       moveCountEl.textContent = moveCount;
-      selectedPeg = null;
-
+      optCountEl.textContent = Math.pow(2, n) - 1;
       render();
+      attachPegEvents();
     }
 
-    /**
-     * Render disks on each peg based on the pegs[] data
-     */
     function render() {
       document.querySelectorAll('.peg').forEach(pegEl => {
         const idx = +pegEl.dataset.peg;
         pegEl.innerHTML = '';
-
-        pegs[idx].forEach((size, i) => {
+        pegs[idx].forEach((size, level) => {
           const disk = document.createElement('div');
           disk.className = 'disk';
-
-          // Lookup precomputed width
           disk.style.width = diskWidths[size] + 'px';
-          disk.style.bottom = i * 22 + 'px';
-
+          disk.style.bottom = (level * 22) + 'px';
+          disk.setAttribute('draggable', true);
+          disk.dataset.size = size;
+          disk.dataset.from = idx;
+          disk.addEventListener('dragstart', onDragStart);
           pegEl.appendChild(disk);
         });
-
-        pegEl.classList.toggle('selected', selectedPeg === idx);
       });
     }
 
-    /**
-     * Handle clicks on a peg: select or move a disk
-     */
-    function handlePegClick(e) {
-      const pegIdx = +e.currentTarget.dataset.peg;
-
-      if (selectedPeg === null) {
-        // Pick up top disk
-        if (pegs[pegIdx].length === 0) return;
-        selectedPeg = pegIdx;
-      } else {
-        // Attempt to place disk
-        if (selectedPeg !== pegIdx) {
-          const from = selectedPeg;
-          const to = pegIdx;
-          const disk = pegs[from].slice(-1)[0];
-          const targetTop = pegs[to].slice(-1)[0] || Infinity;
-
-          if (disk < targetTop) {
-            pegs[to].push(pegs[from].pop());
-            moveCount++;
-            moveCountEl.textContent = moveCount;
-          }
-        }
-        selectedPeg = null;
+    function onDragStart(e) {
+      // Only allow dragging top disk
+      const from = +e.target.dataset.from;
+      const size = +e.target.dataset.size;
+      if (pegs[from].slice(-1)[0] !== size) {
+        e.preventDefault();
+        return;
       }
-
-      render();
-      checkWin();
+      e.dataTransfer.setData('text/plain', JSON.stringify({ from, size }));
     }
 
-    /**
-     * Check for win condition: all disks moved to last peg
-     */
-    function checkWin() {
-      if (pegs[2].length === totalDisks) {
-        setTimeout(() => alert(`Congratulations! You solved it in ${moveCount} moves.`), 10);
+    function attachPegEvents() {
+      document.querySelectorAll('.peg').forEach(pegEl => {
+        pegEl.ondragover = e => e.preventDefault();
+        pegEl.ondrop = onDrop;
+      });
+    }
+
+    function onDrop(e) {
+      e.preventDefault();
+      const { from, size } = JSON.parse(e.dataTransfer.getData('text/plain'));
+      const to = +e.currentTarget.dataset.peg;
+      const top = pegs[to].slice(-1)[0] || Infinity;
+      if (size < top) {
+        pegs[to].push(pegs[from].pop());
+        moveCount++;
+        moveCountEl.textContent = moveCount;
+        render();
       }
     }
 
-    // Attach event listeners
-    document.querySelectorAll('.peg').forEach(pegEl => {
-      pegEl.addEventListener('click', handlePegClick);
-    });
-
+    // Attach controls
     resetBtn.addEventListener('click', init);
     numDisksEl.addEventListener('change', init);
 
-    // Start the game
+    // Start game
     init();
   </script>
 </body>
