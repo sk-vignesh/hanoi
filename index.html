@@ -27,9 +27,8 @@
       flex: 1;
       max-width: 150px;
       position: relative;
-      background-color: #e0e0e0;
+      background: transparent;
       margin: 0 10px;
-      /* Draw a rod using a pseudo-element */
     }
     .peg::before {
       content: '';
@@ -42,19 +41,20 @@
       transform: translateX(-50%);
     }
 
+    /* Disk styling (base) */
     .disk {
       position: absolute;
       height: 20px;
       border-radius: 4px;
-      background-color: #3498db;
-      border: 2px solid #2980b9;
       box-sizing: border-box;
       left: 50%;
       transform: translateX(-50%);
       cursor: grab;
+      z-index: 1; /* Ensure disks sit above rods */
     }
     .disk:active { cursor: grabbing; }
 
+    /* Move and optimal counters */
     #moves, #optimal { margin-top: 10px; }
   </style>
 </head>
@@ -108,8 +108,14 @@
         pegs[idx].forEach((size, level) => {
           const disk = document.createElement('div');
           disk.className = 'disk';
+          // set width and position
           disk.style.width = diskWidths[size] + 'px';
           disk.style.bottom = (level * 22) + 'px';
+          // assign color based on size: use HSL hue spread
+          const hue = Math.round((size-1) * (360 / totalDisks));
+          disk.style.backgroundColor = `hsl(${hue}, 70%, 60%)`;
+          disk.style.border = `2px solid hsl(${hue}, 70%, 50%)`;
+          // enable drag attributes
           disk.setAttribute('draggable', true);
           disk.dataset.size = size;
           disk.dataset.from = idx;
@@ -120,9 +126,9 @@
     }
 
     function onDragStart(e) {
-      // Only allow dragging top disk
       const from = +e.target.dataset.from;
       const size = +e.target.dataset.size;
+      // only the top disk
       if (pegs[from].slice(-1)[0] !== size) {
         e.preventDefault();
         return;
@@ -150,11 +156,11 @@
       }
     }
 
-    // Attach controls
+    // controls
     resetBtn.addEventListener('click', init);
     numDisksEl.addEventListener('change', init);
 
-    // Start game
+    // start
     init();
   </script>
 </body>
