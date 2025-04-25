@@ -16,22 +16,27 @@
     h1 { margin-bottom: 10px; }
     #controls { margin-bottom: 20px; }
 
-    /* Game container: three pegs as vertical rods */
+    /* Game container: three pegs side by side */
     #game {
       display: flex;
       justify-content: space-around;
       align-items: flex-end;
       height: 300px;
+      position: relative;
     }
+
+    /* Peg wrapper */
     .peg {
       flex: 1;
       max-width: 150px;
       position: relative;
-      background: transparent;
       margin: 0 10px;
+      /* Transparent background so rods are visible */
+      background: transparent;
     }
-    .peg::before {
-      content: '';
+
+    /* Explicit rod element inside peg */
+    .rod {
       position: absolute;
       bottom: 0;
       left: 50%;
@@ -39,9 +44,10 @@
       height: 100%;
       background-color: #555;
       transform: translateX(-50%);
+      z-index: 0; /* Behind disks */
     }
 
-    /* Disk styling (base) */
+    /* Disk styling */
     .disk {
       position: absolute;
       height: 20px;
@@ -50,7 +56,7 @@
       left: 50%;
       transform: translateX(-50%);
       cursor: grab;
-      z-index: 1; /* Ensure disks sit above rods */
+      z-index: 1; /* Above rods */
     }
     .disk:active { cursor: grabbing; }
 
@@ -63,15 +69,20 @@
   <div id="controls">
     <label for="numDisks">Number of Disks:</label>
     <select id="numDisks">
-      <option>3</option><option>4</option><option>5</option><option>6</option>
+      <option>3</option>
+      <option>4</option>
+      <option>5</option>
+      <option>6</option>
     </select>
     <button id="reset">Reset</button>
   </div>
+
   <div id="game">
-    <div class="peg" data-peg="0"></div>
-    <div class="peg" data-peg="1"></div>
-    <div class="peg" data-peg="2"></div>
+    <div class="peg" data-peg="0"><div class="rod"></div></div>
+    <div class="peg" data-peg="1"><div class="rod"></div></div>
+    <div class="peg" data-peg="2"><div class="rod"></div></div>
   </div>
+
   <div id="moves">Moves: <span id="moveCount">0</span></div>
   <div id="optimal">Optimal moves: <span id="optCount">0</span></div>
 
@@ -88,12 +99,12 @@
     function init() {
       const n = parseInt(numDisksEl.value, 10);
       totalDisks = n;
-      // Precompute disk widths
-      diskWidths = Array.from({ length: n+1 }, (_, size) =>
-        size === 0 ? 0 : MIN_WIDTH + (size-1)*((MAX_WIDTH-MIN_WIDTH)/(n-1))
+      // Precompute widths
+      diskWidths = Array.from({ length: n + 1 }, (_, size) =>
+        size === 0 ? 0 : MIN_WIDTH + (size - 1) * ((MAX_WIDTH - MIN_WIDTH) / (n - 1))
       );
-      // Initialize pegs
-      pegs = [Array.from({ length: n }, (_, i) => n-i), [], []];
+      // Initialize pegs with disks on first peg
+      pegs = [Array.from({ length: n }, (_, i) => n - i), [], []];
       moveCount = 0;
       moveCountEl.textContent = moveCount;
       optCountEl.textContent = Math.pow(2, n) - 1;
@@ -104,18 +115,20 @@
     function render() {
       document.querySelectorAll('.peg').forEach(pegEl => {
         const idx = +pegEl.dataset.peg;
-        pegEl.innerHTML = '';
+        // Clear old disks but keep rod
+        pegEl.querySelectorAll('.disk').forEach(d => d.remove());
+
         pegs[idx].forEach((size, level) => {
           const disk = document.createElement('div');
           disk.className = 'disk';
-          // set width and position
+          // width and position
           disk.style.width = diskWidths[size] + 'px';
-          disk.style.bottom = (level * 22) + 'px';
-          // assign color based on size: use HSL hue spread
-          const hue = Math.round((size-1) * (360 / totalDisks));
+          disk.style.bottom = level * 22 + 'px';
+          // color per size
+          const hue = Math.round((size - 1) * (360 / totalDisks));
           disk.style.backgroundColor = `hsl(${hue}, 70%, 60%)`;
           disk.style.border = `2px solid hsl(${hue}, 70%, 50%)`;
-          // enable drag attributes
+          // drag attributes
           disk.setAttribute('draggable', true);
           disk.dataset.size = size;
           disk.dataset.from = idx;
@@ -128,7 +141,7 @@
     function onDragStart(e) {
       const from = +e.target.dataset.from;
       const size = +e.target.dataset.size;
-      // only the top disk
+      // only top disk draggable
       if (pegs[from].slice(-1)[0] !== size) {
         e.preventDefault();
         return;
@@ -156,11 +169,11 @@
       }
     }
 
-    // controls
+    // Controls
     resetBtn.addEventListener('click', init);
     numDisksEl.addEventListener('change', init);
 
-    // start
+    // Launch
     init();
   </script>
 </body>
